@@ -1,0 +1,40 @@
+if(NOT EXISTS "@CMAKE_BINARY_DIR@/install_manifest.txt")
+    message(FATAL_ERROR "Cannot find install manifest: @CMAKE_BINARY_DIR@/install_manifest.txt")
+endif()
+
+# Boundary beyond which empty directory pruning must stop.
+set(_uninstall_prefix "$ENV{DESTDIR}@CMAKE_INSTALL_PREFIX@")
+
+function(_uninstall_prune_empty_dirs dir)
+    get_filename_component(_dir "${dir}" ABSOLUTE)
+    if(NOT _dir STREQUAL _uninstall_prefix AND IS_DIRECTORY "${_dir}")
+        file(GLOB _dir_contents "${_dir}/*")
+        if(NOT _dir_contents)
+            file(REMOVE_RECURSE "${_dir}")
+            get_filename_component(_parent_dir "${_dir}" DIRECTORY)
+            _uninstall_prune_empty_dirs("${_parent_dir}")
+        endif()
+    endif()
+endfunction()
+
+file(READ "@CMAKE_BINARY_DIR@/install_manifest.txt" files)
+string(REGEX REPLACE "\n" ";" files "${files}")
+foreach(file ${files})
+    message(STATUS "Uninstalling $ENV{DESTDIR}${file}")
+    if(IS_SYMLINK "$ENV{DESTDIR}${file}" OR EXISTS "$ENV{DESTDIR}${file}")
+        execute_process(
+            COMMAND
+                "@CMAKE_COMMAND@" -E remove "$ENV{DESTDIR}${file}"
+            RESULT_VARIABLE
+                rm_retval
+            )
+        if(NOT "${rm_retval}" STREQUAL 0)
+            message(FATAL_ERROR "Problem when removing $ENV{DESTDIR}${file}")
+        endif()
+    else()
+        message(STATUS "File $ENV{DESTDIR}${file} does not exist.")
+    endif()
+    # Prune now-empty directories even if the file was already gone from a previous run.
+    get_filename_component(_parent_dir "$ENV{DESTDIR}${file}" DIRECTORY)
+    _uninstall_prune_empty_dirs("${_parent_dir}")
+endforeach()

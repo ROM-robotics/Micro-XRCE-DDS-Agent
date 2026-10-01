@@ -523,6 +523,20 @@ if(EXISTS ${CMAKE_BINARY_DIR}/temp_install/)
     endforeach()
 endif()
 
+# Uninstall target
+if(NOT TARGET uninstall)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/cmake/packaging/cmake_uninstall.cmake.in
+        ${PROJECT_BINARY_DIR}/cmake/packaging/cmake_uninstall.cmake
+        IMMEDIATE @ONLY
+        )
+
+    add_custom_target(uninstall
+        COMMAND
+            ${CMAKE_COMMAND} -P ${PROJECT_BINARY_DIR}/cmake/packaging/cmake_uninstall.cmake
+        )
+endif()
+
 # Generate Windows Installer.
 if(WIN32 AND UAGENT_INSTALLER AND UAGENT_BUILD_EXECUTABLE)
     # Set product name.
